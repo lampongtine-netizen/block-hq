@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Block HQ</title>
+<style>
+  :root{
+    --paper:#FAF6EC;
+    --paper-dark:#F1E9D8;
+    --ink:#241F1A;
+    --ink-soft:#5B5347;
+    --maroon:#6E2A35;
+    --maroon-dark:#531F28;
+    --gold:#A9803E;
+    --line:#D9CDB2;
+    --green:#3E6B4F;
+    --amber:#B4791F;
+    --red:#A23B2E;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Iowan Old Style','Georgia',serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:980px;margin:0 auto;padding:28px 20px 80px;}
+
+  header.masthead{
+    text-align:center;
+    border-bottom:3px double var(--maroon);
+    padding-bottom:14px;
+    margin-bottom:22px;
+  }
+  header.masthead .kicker{
+    letter-spacing:.28em;
+    font-size:11px;
+    color:var(--maroon);
+    font-family:'Courier New',monospace;
+    text-transform:uppercase;
+  }
+  header.masthead h1{
+    font-size:40px;
+    margin:6px 0 2px;
+    font-weight:700;
+    letter-spacing:.01em;
+  }
+  header.masthead .sub{
+    font-size:13px;
+    color:var(--ink-soft);
+    font-style:italic;
+  }
+
+  nav.tabs{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    justify-content:center;
+    margin-bottom:24px;
+  }
+  nav.tabs button{
+    font-family:'Courier New',monospace;
+    font-size:12px;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--ink-soft);
+    padding:9px 16px;
+    cursor:pointer;
+    border-radius:2px;
+  }
+  nav.tabs button.active{
+    background:var(--maroon);
+    border-color:var(--maroon);
+    color:var(--paper);
+  }
+  nav.tabs button:hover:not(.active){
+    border-color:var(--maroon);
+    color:var(--maroon);
+  }
+
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  h2.section-title{
+    font-size:22px;
+    margin:0 0 4px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:8px;
+  }
+  .section-title .eyebrow{
+    display:block;
+    font-family:'Courier New',monospace;
+    font-size:10px;
+    letter-spacing:.24em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:2px;
+  }
+
+  /* Dashboard */
+  .stat-row{display:flex;gap:14px;flex-wrap:wrap;margin:18px 0 26px;}
+  .stat-card{
+    flex:1;min-width:130px;
+    background:var(--paper-dark);
+    border:1px solid var(--line);
+    padding:14px 16px;
+    text-align:center;
+  }
+  .stat-card .num{font-size:30px;font-weight:700;color:var(--maroon);}
+  .stat-card .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);font-family:'Courier New',monospace;}
+
+  .subject-chip-row{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;}
+  .chip{
+    border:1px solid var(--maroon);
+    color:var(--maroon);
+    font-family:'Courier New',monospace;
+    font-size:12px;
+    padding:5px 12px;
+    border-radius:20px;
+    background:#fff;
+    display:flex;align-items:center;gap:6px;
+  }
+  .chip button{
+    background:none;border:none;color:var(--maroon);cursor:pointer;font-size:13px;line-height:1;padding:0;
+  }
+  .add-subject{display:flex;gap:8px;margin-top:10px;}
+  .add-subject input{flex:1;}
+
+  /* forms */
+  input[type=text], input[type=date], textarea, select{
+    font-family:inherit;
+    font-size:14px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink);
+    border-radius:2px;
+  }
+  textarea{width:100%;resize:vertical;font-family:'Georgia',serif;}
+  label.field{display:block;margin:12px 0;}
+  label.field span{
+    display:block;
+    font-family:'Courier New',monospace;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--maroon);
+    margin-bottom:4px;
+  }
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;}
+  .grid3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:0 16px;}
+  @media(max-width:600px){.grid2,.grid3{grid-template-columns:1fr;}}
+
+  button.primary{
+    background:var(--maroon);
+    color:var(--paper);
+    border:none;
+    padding:11px 22px;
+    font-family:'Courier New',monospace;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    font-size:12px;
+    cursor:pointer;
+    border-radius:2px;
+    margin-top:16px;
+  }
+  button.primary:hover{background:var(--maroon-dark);}
+  button.ghost{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--ink-soft);
+    padding:6px 12px;
+    font-family:'Courier New',monospace;
+    font-size:11px;
+    cursor:pointer;
+    border-radius:2px;
+  }
+  button.ghost:hover{border-color:var(--maroon);color:var(--maroon);}
+
+  /* digest card */
+  .filters{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 18px;align-items:center;}
+  .filters select, .filters input{min-width:160px;}
+  .digest-list{display:flex;flex-direction:column;gap:10px;}
+  .digest-card{
+    border:1px solid var(--line);
+    border-left:4px solid var(--maroon);
+    background:#fff;
+    padding:12px 16px;
+    cursor:pointer;
+  }
+  .digest-card:hover{border-left-color:var(--gold);}
+  .digest-card .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .digest-card .title{font-weight:700;font-size:15px;}
+  .digest-card .meta{font-family:'Courier New',monospace;font-size:11px;color:var(--ink-soft);}
+  .digest-card .tag{
+    display:inline-block;font-family:'Courier New',monospace;font-size:10px;
+    background:var(--paper-dark);border:1px solid var(--line);padding:2px 8px;border-radius:10px;color:var(--maroon);
+  }
+  .empty{
+    text-align:center;color:var(--ink-soft);font-style:italic;padding:40px 10px;border:1px dashed var(--line);
+  }
+
+  /* modal */
+  .modal-bg{
+    display:none;position:fixed;inset:0;background:rgba(36,31,26,.55);z-index:50;
+    align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;
+  }
+  .modal-bg.active{display:flex;}
+  .modal{
+    background:var(--paper);
+    max-width:640px;width:100%;
+    border:1px solid var(--line);
+    padding:26px 28px 30px;
+    position:relative;
+  }
+  .modal h3{border-bottom:2px double var(--maroon);padding-bottom:8px;margin-top:0;}
+  .modal .close{position:absolute;top:14px;right:18px;cursor:pointer;font-size:18px;color:var(--ink-soft);background:none;border:none;}
+  .modal .block-label{font-family:'Courier New',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:14px 0 3px;}
+  .modal .block-body{white-space:pre-wrap;line-height:1.5;font-size:14px;}
+  .modal .row2{display:flex;gap:20px;flex-wrap:wrap;}
+  .modal .row2 > div{flex:1;min-width:180px;}
+
+  /* tracker */
+  table.tracker{width:100%;border-collapse:collapse;margin-top:10px;}
+  table.tracker th{
+    text-align:left;font-family:'Courier New',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--ink-soft);border-bottom:1px solid var(--maroon);padding:6px 8px;
+  }
+  table.tracker td{border-bottom:1px solid var(--line);padding:8px;font-size:14px;vertical-align:middle;}
+  table.tracker input[type=checkbox]{width:16px;height:16px;}
+  .del-x{color:var(--red);cursor:pointer;font-family:'Courier New',monospace;font-size:12px;background:none;border:none;}
+
+  .status-pill{font-family:'Courier New',monospace;font-size:11px;padding:3px 9px;border-radius:10px;border:1px solid;}
+  .status-notstarted{color:var(--ink-soft);border-color:var(--line);}
+  .status-inprogress{color:var(--amber);border-color:var(--amber);}
+  .status-done{color:var(--green);border-color:var(--green);}
+  .warn-overdue{color:var(--red);font-weight:700;}
+  .warn-soon{color:var(--amber);font-weight:700;}
+  .warn-ok{color:var(--ink-soft);}
+
+  .notes-textarea{min-height:340px;}
+  .save-hint{font-size:11px;color:var(--ink-soft);font-style:italic;margin-top:6px;}
+
+  ::placeholder{color:#B7AD97;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="masthead">
+    <div class="kicker">Shared Block Workspace &middot; No Login Required</div>
+    <h1>Block HQ</h1>
+    <div class="sub">Case digests, tracker, notes &amp; assignments — built for the whole block</div>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="dashboard" class="active">Dashboard</button>
+    <button data-tab="newdigest">New Digest</button>
+    <button data-tab="library">Digest Library</button>
+    <button data-tab="tracker">Case Tracker</button>
+    <button data-tab="assignments">Assignments</button>
+    <button data-tab="notes">Notes</button>
+  </nav>
+
+  <!-- DASHBOARD -->
+  <section class="panel active" id="panel-dashboard">
+    <h2 class="section-title"><span class="eyebrow">Overview</span>At a Glance</h2>
+    <div class="stat-row">
+      <div class="stat-card"><div class="num" id="stat-digests">0</div><div class="lbl">Digests Filed</div></div>
+      <div class="stat-card"><div class="num" id="stat-readings">0</div><div class="lbl">Cases to Read</div></div>
+      <div class="stat-card"><div class="num" id="stat-pending">0</div><div class="lbl">Pending To-Dos</div></div>
+      <div class="stat-card"><div class="num" id="stat-overdue">0</div><div class="lbl">Overdue</div></div>
+    </div>
+
+    <h2 class="section-title"><span class="eyebrow">Setup</span>Subjects</h2>
+    <p class="save-hint">These subjects power the dropdowns everywhere else. Add or remove as your block's load changes.</p>
+    <div class="subject-chip-row" id="subject-chips"></div>
+    <div class="add-subject">
+      <input type="text" id="new-subject-input" placeholder="e.g. Persons and Family Relations">
+      <button class="primary" style="margin:0" id="add-subject-btn">Add Subject</button>
+    </div>
+  </section>
+
+  <!-- NEW DIGEST -->
+  <section class="panel" id="panel-newdigest">
+    <h2 class="section-title"><span class="eyebrow">Digest Maker</span>File a New Case Digest</h2>
+    <label class="field"><span>Subject</span>
+      <select id="d-subject"></select>
+    </label>
+    <label class="field"><span>Topic</span>
+      <input type="text" id="d-topic" placeholder="e.g. Judicial Review">
+    </label>
+    <label class="field"><span>Short Title of Case</span>
+      <input type="text" id="d-shorttitle" placeholder="e.g. Oposa v. Factoran">
+    </label>
+    <label class="field"><span>Keywords</span>
+      <input type="text" id="d-keywords" placeholder="comma, separated, keywords">
+    </label>
+    <div class="grid3">
+      <label class="field"><span>Date Decision Rendered</span><input type="date" id="d-date"></label>
+      <label class="field"><span>G.R. No.</span><input type="text" id="d-grno"></label>
+      <label class="field"><span>Ponente</span><input type="text" id="d-ponente"></label>
+    </div>
+    <label class="field"><span>CAmanSE Synopsis</span>
+      <textarea id="d-synopsis" rows="3"></textarea>
+    </label>
+    <label class="field"><span>Facts</span>
+      <textarea id="d-facts" rows="4"></textarea>
+    </label>
+    <label class="field"><span>Issue/s</span>
+      <textarea id="d-issues" rows="3"></textarea>
+    </label>
+    <div class="grid2">
+      <label class="field"><span>Arguments / Actions Taken — 1st Party</span><textarea id="d-party1" rows="3"></textarea></label>
+      <label class="field"><span>Arguments / Actions Taken — 2nd Party</span><textarea id="d-party2" rows="3"></textarea></label>
+    </div>
+    <label class="field"><span>Legal Provisions / Concepts / Doctrines / How Applied</span>
+      <textarea id="d-provisions" rows="4"></textarea>
+    </label>
+    <label class="field"><span>Ruling (How the Law Was Applied)</span>
+      <textarea id="d-ruling" rows="4"></textarea>
+    </label>
+    <label class="field"><span>Dispositive</span>
+      <textarea id="d-dispositive" rows="2"></textarea>
+    </label>
+    <label class="field"><span>Notes</span>
+      <textarea id="d-notes" rows="3"></textarea>
+    </label>
+    <div class="grid2">
+      <label class="field"><span>Link for Full Text</span><input type="text" id="d-link" placeholder="https://..."></label>
+      <label class="field"><span>Case Digest By</span><input type="text" id="d-by" placeholder="Your name"></label>
+    </div>
+    <button class="primary" id="save-digest-btn">Save Digest to Library</button>
+    <div class="save-hint" id="save-digest-hint"></div>
+  </section>
+
+  <!-- LIBRARY -->
+  <section class="panel" id="panel-library">
+    <h2 class="section-title"><span class="eyebrow">Shared Library</span>Case Digests</h2>
+    <div class="filters">
+      <select id="lib-subject-filter"><option value="">All Subjects</option></select>
+      <input type="text" id="lib-search" placeholder="Search title, topic, keywords...">
+    </div>
+    <div class="digest-list" id="digest-list"></div>
+  </section>
+
+  <!-- TRACKER -->
+  <section class="panel" id="panel-tracker">
+    <h2 class="section-title"><span class="eyebrow">Reading List</span>Case Tracker</h2>
+    <p class="save-hint">Add cases assigned per subject and check them off as you finish. Digest count is pulled automatically from the library.</p>
+    <div id="tracker-tables"></div>
+  </section>
+
+  <!-- ASSIGNMENTS -->
+  <section class="panel" id="panel-assignments">
+    <h2 class="section-title"><span class="eyebrow">Deadlines</span>Assignments &amp; To-Dos</h2>
+    <div class="grid3" style="align-items:end;">
+      <label class="field"><span>Task</span><input type="text" id="a-task" placeholder="e.g. Memo on Statcon"></label>
+      <label class="field"><span>Subject</span><select id="a-subject"></select></label>
+      <label class="field"><span>Deadline</span><input type="date" id="a-deadline"></label>
+    </div>
+    <button class="primary" id="add-todo-btn">Add To-Do</button>
+    <table class="tracker" style="margin-top:24px;">
+      <thead><tr><th>Task</th><th>Subject</th><th>Deadline</th><th>Days Left</th><th>Status</th><th></th></tr></thead>
+      <tbody id="todo-body"></tbody>
+    </table>
+  </section>
+
+  <!-- NOTES -->
+  <section class="panel" id="panel-notes">
+    <h2 class="section-title"><span class="eyebrow">Shared Notepad</span>Notes</h2>
+    <label class="field"><span>Subject</span>
+      <select id="notes-subject"></select>
+    </label>
+    <textarea class="notes-textarea" id="notes-area" placeholder="Type notes for this subject here. Saves automatically for everyone."></textarea>
+    <div class="save-hint" id="notes-save-hint">&nbsp;</div>
+  </section>
+
+</div>
+
+<div class="modal-bg" id="modal-bg">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = "https://xivvndysuziogjapiywo.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpdnZuZHlzdXppb2dqYXBpeXdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0MzI5NjEsImV4cCI6MjA5OTAwODk2MX0.1O1lKZIsmZzDzWhKiqqlCajTRoh4P8ftXMz0kTYWXhw";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const DEFAULT_SUBJECTS = ["STATCON","CRIMPRO","CONSTI"];
+
+let subjects = [];
+let digests = [];
+let readings = {}; // {subject: [{id, caseTitle, done}]}
+let todos = [];
+let notes = {}; // {subject: text}
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+async function loadAll(){
+  subjects = await getJSON('subjects', DEFAULT_SUBJECTS);
+  digests = await getJSON('digests', []);
+  readings = await getJSON('readings', {});
+  todos = await getJSON('todos', []);
+  notes = await getJSON('notes', {});
+}
+async function getJSON(key, fallback){
+  try{
+    const { data, error } = await sb.from('block_hq').select('value').eq('key', key).maybeSingle();
+    if(error) throw error;
+    if(data && data.value) return data.value;
+    return fallback;
+  }catch(e){ console.error('supabase get failed', key, e); return fallback; }
+}
+async function setJSON(key, value){
+  try{
+    const { error } = await sb.from('block_hq').upsert({ key, value, updated_at: new Date().toISOString() });
+    if(error) throw error;
+  }
+  catch(e){ console.error('supabase set failed', key, e); }
+}
+function populateSelects(){
+  const selects = [document.getElementById('d-subject'), document.getElementById('a-subject'), document.getElementById('notes-subject')];
+  selects.forEach(sel=>{
+    const cur = sel.value;
+    sel.innerHTML = subjects.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    if(subjects.includes(cur)) sel.value = cur;
+  });
+  const filterSel = document.getElementById('lib-subject-filter');
+  const curF = filterSel.value;
+  filterSel.innerHTML = '<option value="">All Subjects</option>' + subjects.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  filterSel.value = curF;
+}
+
+function escapeHtml(str){
+  return (str||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function renderSubjectChips(){
+  const wrap = document.getElementById('subject-chips');
+  wrap.innerHTML = subjects.map(s=>`
+    <span class="chip">${escapeHtml(s)}<button data-remove-subject="${escapeHtml(s)}">&times;</button></span>
+  `).join('');
+  wrap.querySelectorAll('[data-remove-subject]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const s = btn.getAttribute('data-remove-subject');
+      subjects = subjects.filter(x=>x!==s);
+      await setJSON('subjects', subjects);
+      populateSelects();
+      renderSubjectChips();
+      renderDashboard();
+      renderTracker();
+    };
+  });
+}
+
+async function renderDashboard(){
+  document.getElementById('stat-digests').textContent = digests.length;
+  let totalReadings = 0;
+  Object.values(readings).forEach(list => totalReadings += (list||[]).length);
+  document.getElementById('stat-readings').textContent = totalReadings;
+  const pending = todos.filter(t=>t.status!=='done').length;
+  document.getElementById('stat-pending').textContent = pending;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const overdue = todos.filter(t=> t.status!=='done' && t.deadline && new Date(t.deadline) < today).length;
+  document.getElementById('stat-overdue').textContent = overdue;
+  renderSubjectChips();
+}
+
+function renderLibrary(){
+  const subjFilter = document.getElementById('lib-subject-filter').value;
+  const q = document.getElementById('lib-search').value.trim().toLowerCase();
+  let list = digests.slice().sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+  if(subjFilter) list = list.filter(d=>d.subject===subjFilter);
+  if(q) list = list.filter(d=>
+    (d.shortTitle||'').toLowerCase().includes(q) ||
+    (d.topic||'').toLowerCase().includes(q) ||
+    (d.keywords||'').toLowerCase().includes(q) ||
+    (d.grNo||'').toLowerCase().includes(q)
+  );
+  const container = document.getElementById('digest-list');
+  if(list.length===0){
+    container.innerHTML = '<div class="empty">No digests here yet. File one from "New Digest".</div>';
+    return;
+  }
+  container.innerHTML = list.map(d=>`
+    <div class="digest-card" data-id="${d.id}">
+      <div class="top">
+        <div class="title">${escapeHtml(d.shortTitle||'Untitled Case')}</div>
+        <span class="tag">${escapeHtml(d.subject||'')}</span>
+      </div>
+      <div class="meta">${escapeHtml(d.grNo||'No G.R. No.')} &middot; ${escapeHtml(d.date||'no date')} &middot; ${escapeHtml(d.ponente||'')}</div>
+    </div>
+  `).join('');
+  container.querySelectorAll('.digest-card').forEach(card=>{
+    card.onclick = ()=> openDigestModal(card.getAttribute('data-id'));
+  });
+}
+
+function openDigestModal(id){
+  const d = digests.find(x=>x.id===id);
+  if(!d) return;
+  const m = document.getElementById('modal-content');
+  m.innerHTML = `
+    <button class="close" id="modal-close">&times;</button>
+    <div class="save-hint">${escapeHtml(d.subject)} &middot; ${escapeHtml(d.topic||'')}</div>
+    <h3>${escapeHtml(d.shortTitle||'Untitled Case')}</h3>
+    <div class="row2">
+      <div><div class="block-label">Date Decided</div><div class="block-body">${escapeHtml(d.date||'—')}</div></div>
+      <div><div class="block-label">G.R. No.</div><div class="block-body">${escapeHtml(d.grNo||'—')}</div></div>
+      <div><div class="block-label">Ponente</div><div class="block-body">${escapeHtml(d.ponente||'—')}</div></div>
+    </div>
+    <div class="block-label">Keywords</div><div class="block-body">${escapeHtml(d.keywords||'—')}</div>
+    <div class="block-label">CAmanSE Synopsis</div><div class="block-body">${escapeHtml(d.synopsis||'—')}</div>
+    <div class="block-label">Facts</div><div class="block-body">${escapeHtml(d.facts||'—')}</div>
+    <div class="block-label">Issue/s</div><div class="block-body">${escapeHtml(d.issues||'—')}</div>
+    <div class="row2">
+      <div><div class="block-label">Arguments — 1st Party</div><div class="block-body">${escapeHtml(d.party1||'—')}</div></div>
+      <div><div class="block-label">Arguments — 2nd Party</div><div class="block-body">${escapeHtml(d.party2||'—')}</div></div>
+    </div>
+    <div class="block-label">Legal Provisions / Doctrines / Applied</div><div class="block-body">${escapeHtml(d.provisions||'—')}</div>
+    <div class="block-label">Ruling</div><div class="block-body">${escapeHtml(d.ruling||'—')}</div>
+    <div class="block-label">Dispositive</div><div class="block-body">${escapeHtml(d.dispositive||'—')}</div>
+    <div class="block-label">Notes</div><div class="block-body">${escapeHtml(d.notes||'—')}</div>
+    <div class="block-label">Full Text Link</div><div class="block-body">${d.link ? `<a href="${escapeHtml(d.link)}" target="_blank" rel="noopener">${escapeHtml(d.link)}</a>` : '—'}</div>
+    <div class="block-label">Digest By</div><div class="block-body">${escapeHtml(d.digestBy||'—')}</div>
+    <div style="margin-top:18px;text-align:right;">
+      <button class="ghost" id="modal-delete">Delete this digest</button>
+    </div>
+  `;
+  document.getElementById('modal-bg').classList.add('active');
+  document.getElementById('modal-close').onclick = closeModal;
+  document.getElementById('modal-delete').onclick = async ()=>{
+    if(confirm('Delete this digest for everyone?')){
+      digests = digests.filter(x=>x.id!==id);
+      await setJSON('digests', digests);
+      closeModal();
+      renderLibrary();
+      renderDashboard();
+    }
+  };
+}
+function closeModal(){ document.getElementById('modal-bg').classList.remove('active'); }
+document.getElementById('modal-bg').addEventListener('click', (e)=>{
+  if(e.target.id==='modal-bg') closeModal();
+});
+
+function renderTracker(){
+  const wrap = document.getElementById('tracker-tables');
+  wrap.innerHTML = subjects.map(s=>{
+    const list = readings[s] || [];
+    const digestCount = digests.filter(d=>d.subject===s).length;
+    const doneCount = list.filter(r=>r.done).length;
+    return `
+      <div style="margin-bottom:28px;">
+        <h3 style="margin-bottom:2px;">${escapeHtml(s)}</h3>
+        <div class="save-hint">${digestCount} digest(s) filed &middot; ${doneCount}/${list.length} cases read</div>
+        <table class="tracker">
+          <thead><tr><th style="width:40px;">Done</th><th>Case</th><th style="width:40px;"></th></tr></thead>
+          <tbody>
+            ${list.map(r=>`
+              <tr>
+                <td><input type="checkbox" data-toggle="${s}|${r.id}" ${r.done?'checked':''}></td>
+                <td>${escapeHtml(r.caseTitle)}</td>
+                <td><button class="del-x" data-del="${s}|${r.id}">✕</button></td>
+              </tr>
+            `).join('') || '<tr><td colspan="3" class="empty" style="padding:14px;">No cases added yet.</td></tr>'}
+          </tbody>
+        </table>
+        <div class="add-subject" style="margin-top:8px;">
+          <input type="text" placeholder="Add a case to read..." data-newcase="${s}">
+          <button class="ghost" data-addcase="${s}">Add</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  wrap.querySelectorAll('[data-toggle]').forEach(cb=>{
+    cb.onchange = async ()=>{
+      const [s,id] = cb.getAttribute('data-toggle').split('|');
+      readings[s] = (readings[s]||[]).map(r=> r.id===id ? {...r, done:cb.checked} : r);
+      await setJSON('readings', readings);
+      renderTracker();
+      renderDashboard();
+    };
+  });
+  wrap.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const [s,id] = btn.getAttribute('data-del').split('|');
+      readings[s] = (readings[s]||[]).filter(r=>r.id!==id);
+      await setJSON('readings', readings);
+      renderTracker();
+      renderDashboard();
+    };
+  });
+  wrap.querySelectorAll('[data-addcase]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const s = btn.getAttribute('data-addcase');
+      const input = wrap.querySelector(`[data-newcase="${s}"]`);
+      const val = input.value.trim();
+      if(!val) return;
+      readings[s] = readings[s] || [];
+      readings[s].push({id:uid(), caseTitle:val, done:false});
+      await setJSON('readings', readings);
+      input.value='';
+      renderTracker();
+      renderDashboard();
+    };
+  });
+}
+
+function daysLeft(deadline){
+  if(!deadline) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dl = new Date(deadline);
+  return Math.round((dl-today)/86400000);
+}
+
+function renderTodos(){
+  const body = document.getElementById('todo-body');
+  const sorted = todos.slice().sort((a,b)=>{
+    if(!a.deadline) return 1;
+    if(!b.deadline) return -1;
+    return new Date(a.deadline)-new Date(b.deadline);
+  });
+  if(sorted.length===0){
+    body.innerHTML = '<tr><td colspan="6" class="empty" style="padding:20px;">No to-dos yet. Add one above.</td></tr>';
+    return;
+  }
+  body.innerHTML = sorted.map(t=>{
+    const dl = daysLeft(t.deadline);
+    let warnClass = 'warn-ok', warnText = dl===null ? '—' : (dl+' d');
+    if(dl!==null){
+      if(dl<0){ warnClass='warn-overdue'; warnText = Math.abs(dl)+' d overdue'; }
+      else if(dl<=2){ warnClass='warn-soon'; warnText = dl+' d left'; }
+    }
+    return `
+      <tr>
+        <td>${escapeHtml(t.task)}</td>
+        <td>${escapeHtml(t.subject||'—')}</td>
+        <td>${escapeHtml(t.deadline||'—')}</td>
+        <td class="${warnClass}">${warnText}</td>
+        <td>
+          <select data-status="${t.id}">
+            <option value="notstarted" ${t.status==='notstarted'?'selected':''}>Not Started</option>
+            <option value="inprogress" ${t.status==='inprogress'?'selected':''}>In Progress</option>
+            <option value="done" ${t.status==='done'?'selected':''}>Done</option>
+          </select>
+        </td>
+        <td><button class="del-x" data-deltodo="${t.id}">✕</button></td>
+      </tr>
+    `;
+  }).join('');
+  body.querySelectorAll('[data-status]').forEach(sel=>{
+    sel.onchange = async ()=>{
+      const id = sel.getAttribute('data-status');
+      todos = todos.map(t=> t.id===id ? {...t, status:sel.value} : t);
+      await setJSON('todos', todos);
+      renderTodos();
+      renderDashboard();
+    };
+  });
+  body.querySelectorAll('[data-deltodo]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const id = btn.getAttribute('data-deltodo');
+      todos = todos.filter(t=>t.id!==id);
+      await setJSON('todos', todos);
+      renderTodos();
+      renderDashboard();
+    };
+  });
+}
+
+function renderNotes(){
+  const sel = document.getElementById('notes-subject');
+  const s = sel.value || subjects[0];
+  document.getElementById('notes-area').value = notes[s] || '';
+}
+
+// Tabs
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.onclick = ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.getAttribute('data-tab')).classList.add('active');
+  };
+});
+
+// Add subject
+document.getElementById('add-subject-btn').onclick = async ()=>{
+  const input = document.getElementById('new-subject-input');
+  const val = input.value.trim();
+  if(!val) return;
+  if(!subjects.includes(val)) subjects.push(val);
+  await setJSON('subjects', subjects);
+  input.value='';
+  populateSelects();
+  renderSubjectChips();
+  renderTracker();
+};
+
+// Save digest
+document.getElementById('save-digest-btn').onclick = async ()=>{
+  const d = {
+    id: uid(),
+    createdAt: Date.now(),
+    subject: document.getElementById('d-subject').value,
+    topic: document.getElementById('d-topic').value,
+    shortTitle: document.getElementById('d-shorttitle').value,
+    keywords: document.getElementById('d-keywords').value,
+    date: document.getElementById('d-date').value,
+    grNo: document.getElementById('d-grno').value,
+    ponente: document.getElementById('d-ponente').value,
+    synopsis: document.getElementById('d-synopsis').value,
+    facts: document.getElementById('d-facts').value,
+    issues: document.getElementById('d-issues').value,
+    party1: document.getElementById('d-party1').value,
+    party2: document.getElementById('d-party2').value,
+    provisions: document.getElementById('d-provisions').value,
+    ruling: document.getElementById('d-ruling').value,
+    dispositive: document.getElementById('d-dispositive').value,
+    notes: document.getElementById('d-notes').value,
+    link: document.getElementById('d-link').value,
+    digestBy: document.getElementById('d-by').value,
+  };
+  if(!d.shortTitle.trim()){
+    document.getElementById('save-digest-hint').textContent = 'Please enter at least the short title of the case.';
+    return;
+  }
+  digests.push(d);
+  await setJSON('digests', digests);
+  document.getElementById('save-digest-hint').textContent = 'Saved to the shared library ✓';
+  ['d-topic','d-shorttitle','d-keywords','d-date','d-grno','d-ponente','d-synopsis','d-facts','d-issues','d-party1','d-party2','d-provisions','d-ruling','d-dispositive','d-notes','d-link','d-by'].forEach(id=>{
+    document.getElementById(id).value = '';
+  });
+  renderLibrary();
+  renderDashboard();
+  setTimeout(()=>{ document.getElementById('save-digest-hint').textContent=''; }, 3000);
+};
+
+// Library filters
+document.getElementById('lib-subject-filter').onchange = renderLibrary;
+document.getElementById('lib-search').oninput = renderLibrary;
+
+// Todos
+document.getElementById('add-todo-btn').onclick = async ()=>{
+  const task = document.getElementById('a-task').value.trim();
+  if(!task) return;
+  todos.push({
+    id: uid(),
+    task,
+    subject: document.getElementById('a-subject').value,
+    deadline: document.getElementById('a-deadline').value,
+    status: 'notstarted'
+  });
+  await setJSON('todos', todos);
+  document.getElementById('a-task').value='';
+  document.getElementById('a-deadline').value='';
+  renderTodos();
+  renderDashboard();
+};
+
+// Notes
+let notesSaveTimeout;
+document.getElementById('notes-subject').onchange = renderNotes;
+document.getElementById('notes-area').addEventListener('input', ()=>{
+  const s = document.getElementById('notes-subject').value;
+  notes[s] = document.getElementById('notes-area').value;
+  document.getElementById('notes-save-hint').textContent = 'Saving...';
+  clearTimeout(notesSaveTimeout);
+  notesSaveTimeout = setTimeout(async ()=>{
+    await setJSON('notes', notes);
+    document.getElementById('notes-save-hint').textContent = 'Saved ✓';
+    setTimeout(()=>{ document.getElementById('notes-save-hint').textContent=''; }, 1500);
+  }, 600);
+});
+
+(async function init(){
+  await loadAll();
+  populateSelects();
+  renderSubjectChips();
+  renderDashboard();
+  renderLibrary();
+  renderTracker();
+  renderTodos();
+  renderNotes();
+
+  // Poll every 15s so everyone's changes sync in without a manual refresh.
+  setInterval(async ()=>{
+    if(document.activeElement && document.activeElement.id === 'notes-area') return; // don't clobber active typing
+    await loadAll();
+    populateSelects();
+    renderSubjectChips();
+    renderDashboard();
+    renderLibrary();
+    renderTracker();
+    renderTodos();
+    renderNotes();
+  }, 15000);
+})();
+</script>
+</body>
+</html>
