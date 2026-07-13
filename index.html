@@ -275,7 +275,29 @@
       <div class="stat-card"><div class="num" id="stat-overdue">0</div><div class="lbl">Overdue</div></div>
     </div>
 
-    <h2 class="section-title"><span class="eyebrow">Setup</span>Subjects</h2>
+    <h2 class="section-title"><span class="eyebrow">Block Board</span>Announcements</h2>
+    <p class="save-hint">Anyone can post. Newest shows first. Use this for reminders, room changes, professor notes, etc.</p>
+    <div class="grid2" style="align-items:end;">
+      <label class="field"><span>Message</span><input type="text" id="ann-text" placeholder="e.g. CRIMPRO class moved to Rm 302 tomorrow"></label>
+      <label class="field"><span>Posted by (optional)</span><input type="text" id="ann-author" placeholder="Your name"></label>
+    </div>
+    <button class="primary" id="add-announcement-btn">Post Announcement</button>
+    <div class="digest-list" id="announcement-list" style="margin-top:18px;"></div>
+
+    <h2 class="section-title" style="margin-top:32px;"><span class="eyebrow">Calendar</span>Schedule</h2>
+    <p class="save-hint">Recitations, exams, deadlines, meetups — anything block-wide with a date.</p>
+    <div class="grid3" style="align-items:end;">
+      <label class="field"><span>Event</span><input type="text" id="sch-title" placeholder="e.g. Prelim Exam - Constitutional Law"></label>
+      <label class="field"><span>Subject</span><select id="sch-subject"><option value="">General</option></select></label>
+      <label class="field"><span>Date</span><input type="date" id="sch-date"></label>
+    </div>
+    <button class="primary" id="add-schedule-btn">Add to Schedule</button>
+    <table class="tracker" style="margin-top:18px;">
+      <thead><tr><th>Event</th><th>Subject</th><th>Date</th><th>In</th><th></th></tr></thead>
+      <tbody id="schedule-body"></tbody>
+    </table>
+
+    <h2 class="section-title" style="margin-top:32px;"><span class="eyebrow">Setup</span>Subjects</h2>
     <p class="save-hint">These subjects power the dropdowns everywhere else. Add or remove as your block's load changes.</p>
     <div class="subject-chip-row" id="subject-chips"></div>
     <div class="add-subject">
@@ -398,6 +420,8 @@ let digests = [];
 let readings = {}; // {subject: [{id, caseTitle, done}]}
 let todos = [];
 let notes = {}; // {subject: text}
+let announcements = [];
+let schedule = [];
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
@@ -407,6 +431,8 @@ async function loadAll(){
   readings = await getJSON('readings', {});
   todos = await getJSON('todos', []);
   notes = await getJSON('notes', {});
+  announcements = await getJSON('announcements', []);
+  schedule = await getJSON('schedule', []);
 }
 async function getJSON(key, fallback){
   try{
@@ -434,6 +460,11 @@ function populateSelects(){
   const curF = filterSel.value;
   filterSel.innerHTML = '<option value="">All Subjects</option>' + subjects.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
   filterSel.value = curF;
+
+  const schSel = document.getElementById('sch-subject');
+  const curS = schSel.value;
+  schSel.innerHTML = '<option value="">General</option>' + subjects.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  schSel.value = curS;
 }
 
 function escapeHtml(str){
@@ -469,6 +500,85 @@ async function renderDashboard(){
   const overdue = todos.filter(t=> t.status!=='done' && t.deadline && new Date(t.deadline) < today).length;
   document.getElementById('stat-overdue').textContent = overdue;
   renderSubjectChips();
+  renderAnnouncements();
+  renderSchedule();
+}
+
+function timeAgo(ts){
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff/60000);
+  if(mins < 1) return 'just now';
+  if(mins < 60) return mins+'m ago';
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return hrs+'h ago';
+  const days = Math.floor(hrs/24);
+  return days+'d ago';
+}
+
+function renderAnnouncements(){
+  const wrap = document.getElementById('announcement-list');
+  const sorted = announcements.slice().sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+  if(sorted.length===0){
+    wrap.innerHTML = '<div class="empty">No announcements yet.</div>';
+    return;
+  }
+  wrap.innerHTML = sorted.map(a=>`
+    <div class="digest-card" style="cursor:default;">
+      <div class="top">
+        <div class="title" style="font-weight:400;">${escapeHtml(a.text)}</div>
+        <button class="del-x" data-delann="${a.id}">✕</button>
+      </div>
+      <div class="meta">${escapeHtml(a.author||'Anonymous')} &middot; ${timeAgo(a.createdAt)}</div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('[data-delann]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const id = btn.getAttribute('data-delann');
+      announcements = announcements.filter(a=>a.id!==id);
+      await setJSON('announcements', announcements);
+      renderAnnouncements();
+    };
+  });
+}
+
+function renderSchedule(){
+  const body = document.getElementById('schedule-body');
+  const sorted = schedule.slice().sort((a,b)=>{
+    if(!a.date) return 1;
+    if(!b.date) return -1;
+    return new Date(a.date)-new Date(b.date);
+  });
+  if(sorted.length===0){
+    body.innerHTML = '<tr><td colspan="5" class="empty" style="padding:20px;">Nothing on the schedule yet.</td></tr>';
+    return;
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  body.innerHTML = sorted.map(ev=>{
+    const dl = ev.date ? Math.round((new Date(ev.date)-today)/86400000) : null;
+    let warnClass = 'warn-ok', warnText = dl===null ? '—' : (dl+' d');
+    if(dl!==null){
+      if(dl<0){ warnClass='warn-overdue'; warnText='passed'; }
+      else if(dl===0){ warnClass='warn-soon'; warnText='today'; }
+      else if(dl<=3){ warnClass='warn-soon'; warnText=dl+' d'; }
+    }
+    return `
+      <tr>
+        <td>${escapeHtml(ev.title)}</td>
+        <td>${escapeHtml(ev.subject||'General')}</td>
+        <td>${escapeHtml(ev.date||'—')}</td>
+        <td class="${warnClass}">${warnText}</td>
+        <td><button class="del-x" data-delsch="${ev.id}">✕</button></td>
+      </tr>
+    `;
+  }).join('');
+  body.querySelectorAll('[data-delsch]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const id = btn.getAttribute('data-delsch');
+      schedule = schedule.filter(e=>e.id!==id);
+      await setJSON('schedule', schedule);
+      renderSchedule();
+    };
+  });
 }
 
 function renderLibrary(){
@@ -690,6 +800,38 @@ document.querySelectorAll('nav.tabs button').forEach(btn=>{
     document.getElementById('panel-'+btn.getAttribute('data-tab')).classList.add('active');
   };
 });
+
+// Announcements
+document.getElementById('add-announcement-btn').onclick = async ()=>{
+  const text = document.getElementById('ann-text').value.trim();
+  if(!text) return;
+  announcements.push({
+    id: uid(),
+    text,
+    author: document.getElementById('ann-author').value.trim(),
+    createdAt: Date.now()
+  });
+  await setJSON('announcements', announcements);
+  document.getElementById('ann-text').value = '';
+  document.getElementById('ann-author').value = '';
+  renderAnnouncements();
+};
+
+// Schedule
+document.getElementById('add-schedule-btn').onclick = async ()=>{
+  const title = document.getElementById('sch-title').value.trim();
+  if(!title) return;
+  schedule.push({
+    id: uid(),
+    title,
+    subject: document.getElementById('sch-subject').value,
+    date: document.getElementById('sch-date').value
+  });
+  await setJSON('schedule', schedule);
+  document.getElementById('sch-title').value = '';
+  document.getElementById('sch-date').value = '';
+  renderSchedule();
+};
 
 // Add subject
 document.getElementById('add-subject-btn').onclick = async ()=>{
