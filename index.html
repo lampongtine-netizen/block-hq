@@ -263,6 +263,7 @@
     <button data-tab="tracker">Case Tracker</button>
     <button data-tab="assignments">Assignments</button>
     <button data-tab="notes">Notes</button>
+    <button data-tab="resources">Resources</button>
   </nav>
 
   <!-- DASHBOARD -->
@@ -365,6 +366,7 @@
     <div class="filters">
       <select id="lib-subject-filter"><option value="">All Subjects</option></select>
       <input type="text" id="lib-search" placeholder="Search title, topic, keywords...">
+      <button class="ghost" id="lib-export-btn">Download Filtered as PDF</button>
     </div>
     <div class="digest-list" id="digest-list"></div>
   </section>
@@ -401,6 +403,19 @@
     <div class="save-hint" id="notes-save-hint">&nbsp;</div>
   </section>
 
+  <!-- RESOURCES -->
+  <section class="panel" id="panel-resources">
+    <h2 class="section-title"><span class="eyebrow">Shared Links</span>Resources</h2>
+    <p class="save-hint">Post links to your Google Drive syllabus, reading lists, folders — anything file-related. No uploads, just links everyone can click.</p>
+    <div class="grid3" style="align-items:end;">
+      <label class="field"><span>Label</span><input type="text" id="res-label" placeholder="e.g. Syllabus - Constitutional Law"></label>
+      <label class="field"><span>Subject</span><select id="res-subject"></select></label>
+      <label class="field"><span>Google Drive / Link URL</span><input type="text" id="res-url" placeholder="https://drive.google.com/..."></label>
+    </div>
+    <button class="primary" id="add-resource-btn">Add Resource</button>
+    <div id="resources-list" style="margin-top:20px;"></div>
+  </section>
+
 </div>
 
 <div class="modal-bg" id="modal-bg">
@@ -422,6 +437,7 @@ let todos = [];
 let notes = {}; // {subject: text}
 let announcements = [];
 let schedule = [];
+let resources = {}; // {subject: [{id, label, url}]}
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
@@ -433,6 +449,7 @@ async function loadAll(){
   notes = await getJSON('notes', {});
   announcements = await getJSON('announcements', []);
   schedule = await getJSON('schedule', []);
+  resources = await getJSON('resources', {});
 }
 async function getJSON(key, fallback){
   try{
@@ -465,6 +482,11 @@ function populateSelects(){
   const curS = schSel.value;
   schSel.innerHTML = '<option value="">General</option>' + subjects.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
   schSel.value = curS;
+
+  const resSel = document.getElementById('res-subject');
+  const curR = resSel.value;
+  resSel.innerHTML = subjects.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  if(subjects.includes(curR)) resSel.value = curR;
 }
 
 function escapeHtml(str){
@@ -582,16 +604,7 @@ function renderSchedule(){
 }
 
 function renderLibrary(){
-  const subjFilter = document.getElementById('lib-subject-filter').value;
-  const q = document.getElementById('lib-search').value.trim().toLowerCase();
-  let list = digests.slice().sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
-  if(subjFilter) list = list.filter(d=>d.subject===subjFilter);
-  if(q) list = list.filter(d=>
-    (d.shortTitle||'').toLowerCase().includes(q) ||
-    (d.topic||'').toLowerCase().includes(q) ||
-    (d.keywords||'').toLowerCase().includes(q) ||
-    (d.grNo||'').toLowerCase().includes(q)
-  );
+  const list = getFilteredDigests().slice().sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
   const container = document.getElementById('digest-list');
   if(list.length===0){
     container.innerHTML = '<div class="empty">No digests here yet. File one from "New Digest".</div>';
@@ -638,12 +651,14 @@ function openDigestModal(id){
     <div class="block-label">Notes</div><div class="block-body">${escapeHtml(d.notes||'—')}</div>
     <div class="block-label">Full Text Link</div><div class="block-body">${d.link ? `<a href="${escapeHtml(d.link)}" target="_blank" rel="noopener">${escapeHtml(d.link)}</a>` : '—'}</div>
     <div class="block-label">Digest By</div><div class="block-body">${escapeHtml(d.digestBy||'—')}</div>
-    <div style="margin-top:18px;text-align:right;">
+    <div style="margin-top:18px;text-align:right;display:flex;gap:10px;justify-content:flex-end;">
+      <button class="ghost" id="modal-pdf">Download as PDF</button>
       <button class="ghost" id="modal-delete">Delete this digest</button>
     </div>
   `;
   document.getElementById('modal-bg').classList.add('active');
   document.getElementById('modal-close').onclick = closeModal;
+  document.getElementById('modal-pdf').onclick = ()=> printDigest(d);
   document.getElementById('modal-delete').onclick = async ()=>{
     if(confirm('Delete this digest for everyone?')){
       digests = digests.filter(x=>x.id!==id);
@@ -654,7 +669,148 @@ function openDigestModal(id){
     }
   };
 }
+function digestBodyHtml(d){
+  const rows = (label, value)=> `
+    <div class="row">
+      <div class="label">${escapeHtml(label)}</div>
+      <div class="value">${escapeHtml(value || '—').replace(/\n/g,'<br>')}</div>
+    </div>`;
+  return `
+      <h1>${escapeHtml(d.shortTitle || 'Untitled Case')}</h1>
+      <div class="subtitle">${escapeHtml(d.subject||'')} ${d.topic ? ' &middot; '+escapeHtml(d.topic) : ''}</div>
+      <div class="meta-row">
+        <span>G.R. No. ${escapeHtml(d.grNo||'—')}</span>
+        <span>${escapeHtml(d.date||'—')}</span>
+        <span>${escapeHtml(d.ponente||'—')}</span>
+      </div>
+      ${rows('Keywords', d.keywords)}
+      ${rows('CAmanSE Synopsis', d.synopsis)}
+      ${rows('Facts', d.facts)}
+      ${rows('Issue/s', d.issues)}
+      <div class="row">
+        <div class="label">Arguments / Actions Taken</div>
+        <div class="two-col">
+          <div><div class="label" style="margin-top:6px;">1st Party</div><div class="value">${escapeHtml(d.party1||'—').replace(/\n/g,'<br>')}</div></div>
+          <div><div class="label" style="margin-top:6px;">2nd Party</div><div class="value">${escapeHtml(d.party2||'—').replace(/\n/g,'<br>')}</div></div>
+        </div>
+      </div>
+      ${rows('Legal Provisions / Concepts / Doctrines / How Applied', d.provisions)}
+      ${rows('Ruling (How the Law Was Applied)', d.ruling)}
+      ${rows('Dispositive', d.dispositive)}
+      ${rows('Notes', d.notes)}
+      ${rows('Full Text Link', d.link)}
+      ${rows('Case Digest By', d.digestBy)}
+  `;
+}
+
+const PRINT_STYLE = `
+  body{ font-family: Georgia, 'Times New Roman', serif; color:#241F1A; max-width:720px; margin:36px auto; line-height:1.5; }
+  h1{ text-align:center; font-size:22px; letter-spacing:.04em; border-bottom:3px double #6E2A35; padding-bottom:10px; margin-bottom:4px; }
+  .subtitle{ text-align:center; font-size:12px; color:#5B5347; margin-bottom:24px; font-style:italic; }
+  .meta-row{ display:flex; justify-content:space-between; font-size:12px; font-family:'Courier New',monospace; border-bottom:1px solid #D9CDB2; padding-bottom:10px; margin-bottom:16px; }
+  .row{ margin-bottom:14px; }
+  .label{ font-family:'Courier New',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#A9803E; margin-bottom:3px; }
+  .value{ font-size:14px; white-space:pre-wrap; }
+  .two-col{ display:flex; gap:24px; }
+  .two-col > div{ flex:1; }
+  .digest-page{ page-break-after:always; }
+  .digest-page:last-child{ page-break-after:auto; }
+  @media print{ body{ margin:0; padding:20px; } }
+`;
+
+function printDigest(d){
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"><title>${escapeHtml(d.shortTitle||'Case Digest')}</title>
+    <style>${PRINT_STYLE}</style></head>
+    <body>
+      ${digestBodyHtml(d)}
+      <script>window.onload = ()=> window.print();<\/script>
+    </body>
+    </html>
+  `;
+  const w = window.open('', '_blank');
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+function getFilteredDigests(){
+  const subjFilter = document.getElementById('lib-subject-filter').value;
+  const q = document.getElementById('lib-search').value.trim().toLowerCase();
+  let list = digests.slice().sort((a,b)=> (a.subject||'').localeCompare(b.subject||'') || (a.shortTitle||'').localeCompare(b.shortTitle||''));
+  if(subjFilter) list = list.filter(d=>d.subject===subjFilter);
+  if(q) list = list.filter(d=>
+    (d.shortTitle||'').toLowerCase().includes(q) ||
+    (d.topic||'').toLowerCase().includes(q) ||
+    (d.keywords||'').toLowerCase().includes(q) ||
+    (d.grNo||'').toLowerCase().includes(q)
+  );
+  return list;
+}
+
+function printDigestBulk(){
+  const list = getFilteredDigests();
+  if(list.length===0){ alert('No digests match the current filter.'); return; }
+  const subjFilter = document.getElementById('lib-subject-filter').value;
+  const coverTitle = subjFilter ? subjFilter + ' — Case Digest Compilation' : 'Case Digest Compilation';
+  const pages = list.map(d=> `<div class="digest-page">${digestBodyHtml(d)}</div>`).join('');
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"><title>${escapeHtml(coverTitle)}</title>
+    <style>${PRINT_STYLE}</style></head>
+    <body>
+      ${pages}
+      <script>window.onload = ()=> window.print();<\/script>
+    </body>
+    </html>
+  `;
+  const w = window.open('', '_blank');
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+function renderResources(){
+  const wrap = document.getElementById('resources-list');
+  const anyResources = subjects.some(s => (resources[s]||[]).length > 0);
+  if(!anyResources){
+    wrap.innerHTML = '<div class="empty">No resources posted yet.</div>';
+    return;
+  }
+  wrap.innerHTML = subjects.map(s=>{
+    const list = resources[s] || [];
+    if(list.length === 0) return '';
+    return `
+      <div style="margin-bottom:22px;">
+        <h3 style="margin-bottom:8px;">${escapeHtml(s)}</h3>
+        <div class="digest-list">
+          ${list.map(r=>`
+            <div class="digest-card" style="cursor:default;">
+              <div class="top">
+                <a class="title" href="${escapeHtml(r.url)}" target="_blank" rel="noopener" style="color:var(--maroon);text-decoration:none;">${escapeHtml(r.label)} ↗</a>
+                <button class="del-x" data-delres="${s}|${r.id}">✕</button>
+              </div>
+              <div class="meta">${escapeHtml(r.url)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+  wrap.querySelectorAll('[data-delres]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const [s,id] = btn.getAttribute('data-delres').split('|');
+      resources[s] = (resources[s]||[]).filter(r=>r.id!==id);
+      await setJSON('resources', resources);
+      renderResources();
+    };
+  });
+}
 function closeModal(){ document.getElementById('modal-bg').classList.remove('active'); }
+
 document.getElementById('modal-bg').addEventListener('click', (e)=>{
   if(e.target.id==='modal-bg') closeModal();
 });
@@ -833,6 +989,20 @@ document.getElementById('add-schedule-btn').onclick = async ()=>{
   renderSchedule();
 };
 
+// Resources
+document.getElementById('add-resource-btn').onclick = async ()=>{
+  const label = document.getElementById('res-label').value.trim();
+  const url = document.getElementById('res-url').value.trim();
+  const subject = document.getElementById('res-subject').value;
+  if(!label || !url) return;
+  resources[subject] = resources[subject] || [];
+  resources[subject].push({ id: uid(), label, url });
+  await setJSON('resources', resources);
+  document.getElementById('res-label').value = '';
+  document.getElementById('res-url').value = '';
+  renderResources();
+};
+
 // Add subject
 document.getElementById('add-subject-btn').onclick = async ()=>{
   const input = document.getElementById('new-subject-input');
@@ -888,6 +1058,7 @@ document.getElementById('save-digest-btn').onclick = async ()=>{
 // Library filters
 document.getElementById('lib-subject-filter').onchange = renderLibrary;
 document.getElementById('lib-search').oninput = renderLibrary;
+document.getElementById('lib-export-btn').onclick = printDigestBulk;
 
 // Todos
 document.getElementById('add-todo-btn').onclick = async ()=>{
@@ -931,6 +1102,7 @@ document.getElementById('notes-area').addEventListener('input', ()=>{
   renderTracker();
   renderTodos();
   renderNotes();
+  renderResources();
 
   // Poll every 15s so everyone's changes sync in without a manual refresh.
   setInterval(async ()=>{
@@ -943,6 +1115,7 @@ document.getElementById('notes-area').addEventListener('input', ()=>{
     renderTracker();
     renderTodos();
     renderNotes();
+    renderResources();
   }, 15000);
 })();
 </script>
